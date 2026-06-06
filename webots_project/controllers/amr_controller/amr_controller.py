@@ -1,31 +1,4 @@
-"""
-AMR Controller — Factory Digital Twin
-
-Architecture
-────────────
-    state machine ─► [warmup → navigating → docking → working → charging]
-          │                │
-          │                ▼
-          │         waypoint router ──► cascade steering
-          │                │                │
-          │                ▼                ▼
-          │         LiDAR / sonar        differential drive
-          │                │
-          ▼                ▼
-    degradation model  ◄── motor load, temp, vibration, SoC, encoder
-          │
-          ▼
-    telemetry JSON ──► stdout + (optional) MQTT (paho-mqtt)
-                      ──► inbound commands (fault injection, missions)
-
-The navigation uses a hand-authored node graph of the factory (see NODES) so
-that robots always travel through wide corridors and never cut through work
-zones.  Each mission step is snapped to the nearest node and the robot walks
-edges of the graph with BFS pathfinding.  This eliminates the old
-"steering-only" approach that got stuck on racks and bollards.
-"""
 from __future__ import annotations
-
 import json
 import math
 import os
