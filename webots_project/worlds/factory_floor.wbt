@@ -1,0 +1,685 @@
+#VRML_SIM R2025a utf8
+# ============================================================================
+# Factory Floor — AMR Predictive Maintenance Digital Twin
+#
+# 40 × 24 m production hall with 9 functional zones and 3 differential-drive
+# AMRs.  All geometry positions assume ENU (Z-up) — explicitly set below.
+#
+# Conventions (per Webots Reference Manual):
+#   • Box size = (dx, dy, dz); z is vertical, so an object sits on the floor
+#     when translation.z == dz/2.
+#   • In `coordinateSystem "ENU"`, a Cylinder's default symmetry axis is Z
+#     (vertical). Upright cylinders (bollards, domes, gas bottles) therefore
+#     need NO rotation.  Horizontal cylinders (wheels, conveyor rollers) are
+#     rotated with `rotation 1 0 0 1.5708`, which maps Z → -Y so their axis
+#     becomes horizontal along the Y axis.
+# ============================================================================
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/floors/protos/RectangleArena.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/factory/containers/protos/WoodenBox.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/factory/containers/protos/CardboardBox.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/factory/pallet/protos/WoodenPallet.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/factory/fire_extinguisher/protos/FireExtinguisher.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/factory/tools/protos/Wrench.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/factory/tools/protos/Hammer.proto"
+
+WorldInfo {
+  title "Factory Floor — AMR Predictive Maintenance"
+  basicTimeStep 16
+  coordinateSystem "ENU"
+  contactProperties [
+    ContactProperties {
+      material1 "floor"
+      material2 "wheel"
+      coulombFriction [ 0.9 ]
+      softCFM 0.0001
+      bounce 0
+    }
+  ]
+}
+Viewpoint {
+  orientation -0.18 0.06 0.98 3.48
+  position 38 -8 22
+}
+TexturedBackground { texture "factory" }
+TexturedBackgroundLight { texture "factory" luminosity 1.2 }
+
+# ============================================================================
+# LIGHTING — ceiling fixtures mounted just below the 4 m wall height
+# ============================================================================
+PointLight { attenuation 0 0 0.0035 intensity 6 location 10  6 3.8  castShadows TRUE }
+PointLight { attenuation 0 0 0.0035 intensity 6 location 30  6 3.8  castShadows TRUE }
+PointLight { attenuation 0 0 0.0035 intensity 6 location 10 18 3.8  castShadows TRUE }
+PointLight { attenuation 0 0 0.0035 intensity 6 location 30 18 3.8  castShadows TRUE }
+PointLight { attenuation 0 0 0.005  intensity 3 location 20 12 3.8 }
+
+# Visible lamp housings (dark plates with emissive underside) at z=3.8
+DEF LAMP_SHAPE Shape {
+  appearance PBRAppearance { baseColor 0.12 0.12 0.12 emissiveColor 0.85 0.85 0.7 roughness 0.3 }
+  geometry Box { size 1.0 0.25 0.05 }
+}
+Solid { translation 10 6  3.8 children [ USE LAMP_SHAPE ] name "lamp_1" }
+Solid { translation 30 6  3.8 children [ USE LAMP_SHAPE ] name "lamp_2" }
+Solid { translation 10 18 3.8 children [ USE LAMP_SHAPE ] name "lamp_3" }
+Solid { translation 30 18 3.8 children [ USE LAMP_SHAPE ] name "lamp_4" }
+Solid { translation 20 12 3.8 children [ USE LAMP_SHAPE ] name "lamp_5" }
+
+# ============================================================================
+# FLOOR + WALLS — 40 × 24 m polished concrete arena, 4 m walls
+# ============================================================================
+RectangleArena {
+  translation 20 12 0
+  floorSize 40 24
+  floorTileSize 2 2
+  floorAppearance PBRAppearance {
+    baseColor 0.72 0.72 0.70
+    roughness 0.75
+    metalness 0.02
+  }
+  wallHeight 4.0
+  wallAppearance PBRAppearance {
+    baseColor 0.78 0.78 0.76
+    roughness 0.85
+    metalness 0.02
+  }
+}
+
+# ============================================================================
+# ZONE OVERLAYS — colored floor patches at z = 0.003 (just above floor).
+# No physics, no boundingObject — robots pass freely.
+# Layout:
+#   x=0..10  Warehouse-raw (y=0..9) | Charging (y=11..15) | QC (y=15..24)
+#   x=10..13 Main NS corridor (3 m wide)
+#   x=13..23 Assembly-A (y=0..9) | Assembly-B (y=11..24)
+#   x=23..32 Welding (y=0..9)    | Packaging (y=11..24)
+#   x=32..40 Finished warehouse (all y)
+#   y=9..11  East-West corridor (2 m wide) spans the full hall
+# ============================================================================
+Solid { translation 5    4.5  0.003 children [ Shape { appearance PBRAppearance { baseColor 0.32 0.42 0.72 roughness 0.9 transparency 0.38 } geometry Box { size 9.6 8.4 0.005 } } ] name "zone_warehouse_raw" }
+Solid { translation 11.5 12   0.003 children [ Shape { appearance PBRAppearance { baseColor 0.55 0.55 0.55 roughness 0.9 transparency 0.45 } geometry Box { size 2.8 23.6 0.005 } } ] name "zone_corridor_main" }
+Solid { translation 18   4.5  0.003 children [ Shape { appearance PBRAppearance { baseColor 0.18 0.58 0.28 roughness 0.9 transparency 0.38 } geometry Box { size 9.6 8.4 0.005 } } ] name "zone_assembly_a" }
+Solid { translation 20  10    0.003 children [ Shape { appearance PBRAppearance { baseColor 0.55 0.55 0.55 roughness 0.9 transparency 0.45 } geometry Box { size 39.6 1.8 0.005 } } ] name "zone_corridor_mid" }
+Solid { translation 18  17.5  0.003 children [ Shape { appearance PBRAppearance { baseColor 0.18 0.55 0.28 roughness 0.9 transparency 0.38 } geometry Box { size 9.6 12.6 0.005 } } ] name "zone_assembly_b" }
+Solid { translation 27.5 4.5  0.003 children [ Shape { appearance PBRAppearance { baseColor 0.78 0.62 0.12 roughness 0.9 transparency 0.38 } geometry Box { size 8.6 8.4 0.005 } } ] name "zone_welding" }
+Solid { translation 27.5 17.5 0.003 children [ Shape { appearance PBRAppearance { baseColor 0.65 0.22 0.45 roughness 0.9 transparency 0.38 } geometry Box { size 8.6 12.6 0.005 } } ] name "zone_packaging" }
+Solid { translation 5   13    0.003 children [ Shape { appearance PBRAppearance { baseColor 0.18 0.55 0.80 roughness 0.9 transparency 0.38 } geometry Box { size 9.6 3.6 0.005 } } ] name "zone_charging" }
+Solid { translation 5   19.5  0.003 children [ Shape { appearance PBRAppearance { baseColor 0.48 0.25 0.65 roughness 0.9 transparency 0.38 } geometry Box { size 9.6 8.4 0.005 } } ] name "zone_quality_control" }
+Solid { translation 36  12    0.003 children [ Shape { appearance PBRAppearance { baseColor 0.32 0.32 0.68 roughness 0.9 transparency 0.38 } geometry Box { size 7.6 23.6 0.005 } } ] name "zone_warehouse_finished" }
+
+# ============================================================================
+# FLOOR SAFETY LINES (yellow) — along corridor edges
+# ============================================================================
+Solid { translation 10 12 0.006 children [ Shape { appearance PBRAppearance { baseColor 0.95 0.80 0.15 roughness 0.4 } geometry Box { size 0.08 23.6 0.004 } } ] name "line_corr_w" }
+Solid { translation 13 12 0.006 children [ Shape { appearance PBRAppearance { baseColor 0.95 0.80 0.15 roughness 0.4 } geometry Box { size 0.08 23.6 0.004 } } ] name "line_corr_e" }
+Solid { translation 20  9 0.006 children [ Shape { appearance PBRAppearance { baseColor 0.95 0.80 0.15 roughness 0.4 } geometry Box { size 39.6 0.08 0.004 } } ] name "line_mid_s" }
+Solid { translation 20 11 0.006 children [ Shape { appearance PBRAppearance { baseColor 0.95 0.80 0.15 roughness 0.4 } geometry Box { size 39.6 0.08 0.004 } } ] name "line_mid_n" }
+
+# Pedestrian crosswalk stripes at corridor intersections
+DEF CROSSWALK_STRIPE Shape { appearance PBRAppearance { baseColor 0.92 0.92 0.88 roughness 0.5 } geometry Box { size 0.3 1.5 0.003 } }
+Solid { translation 11.2 10 0.007 children [ USE CROSSWALK_STRIPE ] name "cw_1" }
+Solid { translation 11.8 10 0.007 children [ USE CROSSWALK_STRIPE ] name "cw_2" }
+Solid { translation 12.4 10 0.007 children [ USE CROSSWALK_STRIPE ] name "cw_3" }
+
+# Waypoint marker dots (blue) for visual alignment with controller waypoints
+DEF WP_MARKER Shape { appearance PBRAppearance { baseColor 0.22 0.45 0.95 emissiveColor 0.1 0.25 0.6 roughness 0.4 } geometry Box { size 0.55 0.55 0.004 } }
+Solid { translation 11.5  4.5 0.008 children [ USE WP_MARKER ] name "wp_s" }
+Solid { translation 11.5 10   0.008 children [ USE WP_MARKER ] name "wp_ms" }
+Solid { translation 11.5 17.5 0.008 children [ USE WP_MARKER ] name "wp_n" }
+Solid { translation 18   10   0.008 children [ USE WP_MARKER ] name "wp_a" }
+Solid { translation 27.5 10   0.008 children [ USE WP_MARKER ] name "wp_w" }
+Solid { translation 34   10   0.008 children [ USE WP_MARKER ] name "wp_f" }
+
+# Pick-up / drop-off markers (orange = pickup, green = dropoff)
+DEF PICKUP_MARKER Shape { appearance PBRAppearance { baseColor 0.95 0.55 0.15 emissiveColor 0.5 0.25 0.05 roughness 0.5 } geometry Box { size 0.8 0.8 0.004 } }
+DEF DROPOFF_MARKER Shape { appearance PBRAppearance { baseColor 0.22 0.82 0.30 emissiveColor 0.1 0.45 0.15 roughness 0.5 } geometry Box { size 0.8 0.8 0.004 } }
+Solid { translation 5   4.5  0.009 children [ USE PICKUP_MARKER ] name "pickup_raw" }
+Solid { translation 5  18    0.009 children [ USE PICKUP_MARKER ] name "pickup_qc" }
+Solid { translation 18  9    0.009 children [ USE DROPOFF_MARKER ] name "dropoff_a" }
+Solid { translation 18 11    0.009 children [ USE DROPOFF_MARKER ] name "dropoff_b" }
+Solid { translation 27.5 9   0.009 children [ USE DROPOFF_MARKER ] name "dropoff_w" }
+Solid { translation 27.5 14  0.009 children [ USE DROPOFF_MARKER ] name "dropoff_pkg" }
+Solid { translation 34  6    0.009 children [ USE DROPOFF_MARKER ] name "dropoff_fin_a" }
+Solid { translation 34 16    0.009 children [ USE DROPOFF_MARKER ] name "dropoff_fin_b" }
+
+# ============================================================================
+# CEILING STRUCTURE — steel beams + cable trays (all below 4 m wall height)
+# ============================================================================
+DEF BEAM_NS Shape { appearance PBRAppearance { baseColor 0.35 0.35 0.38 roughness 0.5 metalness 0.7 } geometry Box { size 0.25 23.6 0.25 } }
+Solid { translation 8  12 3.6 children [ USE BEAM_NS ] name "beam_ns_1" }
+Solid { translation 20 12 3.6 children [ USE BEAM_NS ] name "beam_ns_2" }
+Solid { translation 32 12 3.6 children [ USE BEAM_NS ] name "beam_ns_3" }
+# East-West cable tray (thin horizontal plate)
+Solid { translation 20 12 3.3 children [ Shape { appearance PBRAppearance { baseColor 0.45 0.45 0.50 roughness 0.4 metalness 0.8 } geometry Box { size 39.6 0.20 0.12 } } ] name "cable_tray_ew" }
+# Ventilation ducts (silver rectangular sections)
+Solid { translation 20  6 3.2 children [ Shape { appearance PBRAppearance { baseColor 0.80 0.80 0.82 roughness 0.35 metalness 0.75 } geometry Box { size 39.6 0.5 0.4 } } ] name "vent_s" }
+Solid { translation 20 18 3.2 children [ Shape { appearance PBRAppearance { baseColor 0.80 0.80 0.82 roughness 0.35 metalness 0.75 } geometry Box { size 39.6 0.5 0.4 } } ] name "vent_n" }
+
+# ============================================================================
+# WAREHOUSE RAW (x=0..10, y=0..9) — shelving racks + pallets
+# ============================================================================
+DEF RACK_SHAPE Shape { appearance PBRAppearance { baseColor 0.38 0.48 0.58 roughness 0.4 metalness 0.6 } geometry Box { size 1.6 0.6 2.2 } }
+Solid { translation 1.0 1.5 1.1 children [ USE RACK_SHAPE ] name "rack_raw_1" boundingObject Box { size 1.6 0.6 2.2 } }
+Solid { translation 1.0 4.5 1.1 children [ USE RACK_SHAPE ] name "rack_raw_2" boundingObject Box { size 1.6 0.6 2.2 } }
+Solid { translation 1.0 7.5 1.1 children [ USE RACK_SHAPE ] name "rack_raw_3" boundingObject Box { size 1.6 0.6 2.2 } }
+Solid { translation 8.8 1.5 1.1 children [ USE RACK_SHAPE ] name "rack_raw_4" boundingObject Box { size 1.6 0.6 2.2 } }
+Solid { translation 8.8 7.5 1.1 children [ USE RACK_SHAPE ] name "rack_raw_5" boundingObject Box { size 1.6 0.6 2.2 } }
+
+# Shelves on racks — small boxes at different heights
+DEF SHELF_BOX Shape { appearance PBRAppearance { baseColor 0.70 0.55 0.30 roughness 0.8 } geometry Box { size 0.4 0.4 0.3 } }
+Solid { translation 1.0 1.5 0.60 children [ USE SHELF_BOX ] name "sh_b_1" }
+Solid { translation 1.0 1.5 1.60 children [ USE SHELF_BOX ] name "sh_b_2" }
+Solid { translation 1.0 4.5 0.60 children [ USE SHELF_BOX ] name "sh_b_3" }
+Solid { translation 1.0 4.5 1.40 children [ USE SHELF_BOX ] name "sh_b_4" }
+Solid { translation 1.0 7.5 1.00 children [ USE SHELF_BOX ] name "sh_b_5" }
+Solid { translation 8.8 1.5 0.90 children [ USE SHELF_BOX ] name "sh_b_6" }
+Solid { translation 8.8 7.5 1.40 children [ USE SHELF_BOX ] name "sh_b_7" }
+
+WoodenPallet { translation 2.6 3.0 0 name "pallet_r1" }
+WoodenPallet { translation 2.6 6.0 0 name "pallet_r2" }
+WoodenPallet { translation 7.4 3.0 0 name "pallet_r3" }
+WoodenBox { translation 2.4 3.0 0.18 name "wbox_r1" size 0.5 0.5 0.35 }
+WoodenBox { translation 2.9 3.0 0.18 name "wbox_r2" size 0.4 0.4 0.35 }
+CardboardBox { translation 2.6 6.0 0.18 name "cbox_r1" size 0.6 0.5 0.35 }
+CardboardBox { translation 7.4 3.0 0.18 name "cbox_r2" size 0.5 0.5 0.3 }
+
+# Pallet jack (decorative box + small handle)
+Solid { translation 4.5 6.2 0.10 children [
+  Shape { appearance PBRAppearance { baseColor 0.85 0.60 0.15 roughness 0.4 metalness 0.3 } geometry Box { size 0.9 0.5 0.2 } }
+  Pose { translation -0.3 0 0.5 children [ Shape { appearance PBRAppearance { baseColor 0.15 0.15 0.15 roughness 0.4 } geometry Box { size 0.08 0.08 1.0 } } ] }
+] name "pallet_jack_1" boundingObject Box { size 0.9 0.5 0.2 } }
+
+# ============================================================================
+# ASSEMBLY A (x=13..23, y=0..9) — 3 workbenches along north wall y=2
+# ============================================================================
+DEF WORKBENCH Shape { appearance PBRAppearance { baseColor 0.55 0.50 0.44 roughness 0.4 metalness 0.1 } geometry Box { size 1.8 1.0 0.9 } }
+Solid { translation 15 1.5 0.45 children [ USE WORKBENCH ] name "table_a1" boundingObject Box { size 1.8 1.0 0.9 } }
+Solid { translation 18 1.5 0.45 children [ USE WORKBENCH ] name "table_a2" boundingObject Box { size 1.8 1.0 0.9 } }
+Solid { translation 21 1.5 0.45 children [ USE WORKBENCH ] name "table_a3" boundingObject Box { size 1.8 1.0 0.9 } }
+
+# Monitors on workbenches (simulated)
+DEF MONITOR Shape { appearance PBRAppearance { baseColor 0.08 0.08 0.12 emissiveColor 0.1 0.35 0.55 roughness 0.2 } geometry Box { size 0.45 0.05 0.30 } }
+Solid { translation 15 1.85 1.12 children [ USE MONITOR ] name "mon_a1" }
+Solid { translation 18 1.85 1.12 children [ USE MONITOR ] name "mon_a2" }
+Solid { translation 21 1.85 1.12 children [ USE MONITOR ] name "mon_a3" }
+
+# Toolboxes on benches
+DEF TOOLBOX Shape { appearance PBRAppearance { baseColor 0.85 0.15 0.15 roughness 0.5 metalness 0.3 } geometry Box { size 0.40 0.25 0.18 } }
+Solid { translation 15 1.35 1.00 children [ USE TOOLBOX ] name "tb_a1" }
+Solid { translation 21 1.35 1.00 children [ USE TOOLBOX ] name "tb_a2" }
+Wrench { translation 15.3 1.30 0.92 rotation 0 0 1 0.4 name "wrench_a" }
+Hammer  { translation 21.2 1.30 0.92 rotation 0 0 1 -0.3 name "hammer_a" }
+
+# Cabinet against east wall
+Solid { translation 22.7 5 0.9 children [ Shape { appearance PBRAppearance { baseColor 0.55 0.55 0.60 roughness 0.5 metalness 0.4 } geometry Box { size 0.5 3.0 1.8 } } ] name "cab_a1" boundingObject Box { size 0.5 3.0 1.8 } }
+
+# ============================================================================
+# ASSEMBLY B (x=13..23, y=11..24) — mirror of A, along north wall y=22
+# ============================================================================
+Solid { translation 15 22.5 0.45 children [ USE WORKBENCH ] name "table_b1" boundingObject Box { size 1.8 1.0 0.9 } }
+Solid { translation 18 22.5 0.45 children [ USE WORKBENCH ] name "table_b2" boundingObject Box { size 1.8 1.0 0.9 } }
+Solid { translation 21 22.5 0.45 children [ USE WORKBENCH ] name "table_b3" boundingObject Box { size 1.8 1.0 0.9 } }
+Solid { translation 15 22.15 1.12 children [ USE MONITOR ] name "mon_b1" }
+Solid { translation 18 22.15 1.12 children [ USE MONITOR ] name "mon_b2" }
+Solid { translation 21 22.15 1.12 children [ USE MONITOR ] name "mon_b3" }
+Solid { translation 15 22.65 1.00 children [ USE TOOLBOX ] name "tb_b1" }
+Solid { translation 21 22.65 1.00 children [ USE TOOLBOX ] name "tb_b2" }
+Wrench { translation 15.3 22.7 0.92 rotation 0 0 1 1.2 name "wrench_b" }
+Hammer  { translation 21.2 22.7 0.92 rotation 0 0 1 -0.8 name "hammer_b" }
+
+# Parts carts in mid zone
+Solid { translation 17 14 0.35 children [
+  Shape { appearance PBRAppearance { baseColor 0.65 0.65 0.68 roughness 0.4 metalness 0.6 } geometry Box { size 1.0 0.6 0.7 } }
+] name "cart_b1" boundingObject Box { size 1.0 0.6 0.7 } }
+Solid { translation 20 16 0.35 children [
+  Shape { appearance PBRAppearance { baseColor 0.65 0.65 0.68 roughness 0.4 metalness 0.6 } geometry Box { size 1.0 0.6 0.7 } }
+] name "cart_b2" boundingObject Box { size 1.0 0.6 0.7 } }
+
+# ============================================================================
+# WELDING (x=23..32, y=0..9) — 3 welder cabinets + gas cylinders + sparks
+# ============================================================================
+DEF WELDER Shape { appearance PBRAppearance { baseColor 0.22 0.22 0.26 roughness 0.3 metalness 0.75 } geometry Box { size 1.4 1.0 1.4 } }
+Solid { translation 25   1.5 0.7 children [ USE WELDER ] name "welder_1" boundingObject Box { size 1.4 1.0 1.4 } }
+Solid { translation 27.5 1.5 0.7 children [ USE WELDER ] name "welder_2" boundingObject Box { size 1.4 1.0 1.4 } }
+Solid { translation 30   1.5 0.7 children [ USE WELDER ] name "welder_3" boundingObject Box { size 1.4 1.0 1.4 } }
+
+# Welder control panels (small box with LCD emissive)
+DEF WELDER_PANEL Shape { appearance PBRAppearance { baseColor 0.08 0.08 0.10 emissiveColor 0.25 0.10 0.05 } geometry Box { size 0.3 0.05 0.18 } }
+Solid { translation 25   0.98 1.20 children [ USE WELDER_PANEL ] name "wp_1" }
+Solid { translation 27.5 0.98 1.20 children [ USE WELDER_PANEL ] name "wp_2" }
+Solid { translation 30   0.98 1.20 children [ USE WELDER_PANEL ] name "wp_3" }
+
+# Gas cylinders — upright (default axis already Z in ENU)
+DEF GAS_CYL Shape {
+  appearance PBRAppearance { baseColor 0.75 0.25 0.15 roughness 0.3 metalness 0.7 }
+  geometry Cylinder { height 1.3 radius 0.15 }
+}
+Solid { translation 25.8 0.9 0.65 children [ USE GAS_CYL ] name "gas_1" boundingObject Cylinder { height 1.3 radius 0.15 } }
+Solid { translation 28.3 0.9 0.65 children [ USE GAS_CYL ] name "gas_2" boundingObject Cylinder { height 1.3 radius 0.15 } }
+Solid { translation 30.8 0.9 0.65 children [ USE GAS_CYL ] name "gas_3" boundingObject Cylinder { height 1.3 radius 0.15 } }
+
+# Welding sparks — emissive sphere
+Solid { translation 27.5 2.5 1.3 children [
+  Shape { appearance PBRAppearance { baseColor 1 0.55 0.15 emissiveColor 1 0.45 0.08 } geometry Sphere { radius 0.06 } }
+] name "spark_1" }
+
+# Fume extraction hood hanging above welders (below ceiling)
+Solid { translation 27.5 1.5 2.8 children [
+  Shape { appearance PBRAppearance { baseColor 0.45 0.45 0.48 roughness 0.4 metalness 0.7 } geometry Box { size 5.5 1.3 0.6 } }
+] name "fume_hood" boundingObject Box { size 5.5 1.3 0.6 } }
+
+FireExtinguisher { translation 23.5 0.5 0 name "fire_ext_1" }
+FireExtinguisher { translation 31.5 7.0 0 rotation 0 0 1 3.14 name "fire_ext_2" }
+
+# ============================================================================
+# PACKAGING (x=23..32, y=11..24) — conveyor belt + boxes + pallet stacks
+# ============================================================================
+Solid { translation 27.5 22.5 0.45 children [
+  Shape { appearance PBRAppearance { baseColor 0.18 0.18 0.22 roughness 0.4 metalness 0.6 } geometry Box { size 6.0 0.8 0.9 } }
+] name "conveyor_1" boundingObject Box { size 6.0 0.8 0.9 } }
+
+# Conveyor roller supports (small gray cylinders standing vertically)
+DEF CONV_ROLLER Pose {
+  rotation 1 0 0 1.5708
+  children [ Shape { appearance PBRAppearance { baseColor 0.50 0.50 0.52 roughness 0.3 metalness 0.85 } geometry Cylinder { height 0.9 radius 0.04 } } ]
+}
+Solid { translation 25 22.2 0.45 children [ USE CONV_ROLLER ] name "cr_1" }
+Solid { translation 26 22.2 0.45 children [ USE CONV_ROLLER ] name "cr_2" }
+Solid { translation 27 22.2 0.45 children [ USE CONV_ROLLER ] name "cr_3" }
+Solid { translation 28 22.2 0.45 children [ USE CONV_ROLLER ] name "cr_4" }
+Solid { translation 29 22.2 0.45 children [ USE CONV_ROLLER ] name "cr_5" }
+Solid { translation 30 22.2 0.45 children [ USE CONV_ROLLER ] name "cr_6" }
+
+# Boxes moving on the conveyor
+CardboardBox { translation 25.5 22.5 1.05 name "pkg_1" size 0.4 0.35 0.30 }
+CardboardBox { translation 27.0 22.5 1.05 name "pkg_2" size 0.3 0.35 0.25 }
+CardboardBox { translation 28.5 22.5 1.05 name "pkg_3" size 0.35 0.30 0.28 }
+CardboardBox { translation 30.0 22.5 1.05 name "pkg_4" size 0.4 0.40 0.30 }
+
+# Packaging pallet stacks (ready to ship)
+WoodenPallet { translation 25 14 0 name "pal_pkg_1" }
+WoodenPallet { translation 30 14 0 name "pal_pkg_2" }
+CardboardBox { translation 25 14 0.18 name "pkg_s_1" size 0.6 0.6 0.35 }
+CardboardBox { translation 25 14 0.55 name "pkg_s_2" size 0.5 0.5 0.30 }
+CardboardBox { translation 30 14 0.18 name "pkg_s_3" size 0.6 0.6 0.35 }
+
+# Wrapping station
+Solid { translation 25 18 0.35 children [
+  Shape { appearance PBRAppearance { baseColor 0.35 0.35 0.38 roughness 0.4 metalness 0.6 } geometry Box { size 1.0 1.0 0.7 } }
+  Pose { translation 0 0 0.55 children [ Shape { appearance PBRAppearance { baseColor 0.85 0.85 0.80 roughness 0.3 } geometry Box { size 0.6 0.6 0.4 } } ] }
+] name "wrap_station" boundingObject Box { size 1.0 1.0 0.7 } }
+
+# ============================================================================
+# FINISHED WAREHOUSE (x=32..40) — racks along east wall
+# ============================================================================
+DEF FIN_RACK Shape { appearance PBRAppearance { baseColor 0.38 0.48 0.58 roughness 0.4 metalness 0.6 } geometry Box { size 1.0 3.8 2.2 } }
+Solid { translation 39 3   1.1 children [ USE FIN_RACK ] name "rack_fin_1" boundingObject Box { size 1.0 3.8 2.2 } }
+Solid { translation 39 9   1.1 children [ USE FIN_RACK ] name "rack_fin_2" boundingObject Box { size 1.0 3.8 2.2 } }
+Solid { translation 39 15  1.1 children [ USE FIN_RACK ] name "rack_fin_3" boundingObject Box { size 1.0 3.8 2.2 } }
+Solid { translation 39 21  1.1 children [ USE FIN_RACK ] name "rack_fin_4" boundingObject Box { size 1.0 3.8 2.2 } }
+
+# Cargo on racks
+DEF CARGO Shape { appearance PBRAppearance { baseColor 0.75 0.60 0.30 roughness 0.8 } geometry Box { size 0.5 0.6 0.4 } }
+Solid { translation 39 3  0.55 children [ USE CARGO ] name "cg_1" }
+Solid { translation 39 3  1.45 children [ USE CARGO ] name "cg_2" }
+Solid { translation 39 9  0.55 children [ USE CARGO ] name "cg_3" }
+Solid { translation 39 15 0.90 children [ USE CARGO ] name "cg_4" }
+Solid { translation 39 21 0.55 children [ USE CARGO ] name "cg_5" }
+Solid { translation 39 21 1.45 children [ USE CARGO ] name "cg_6" }
+
+WoodenPallet { translation 37.5 6 0 rotation 0 0 1 1.5708 name "pal_fin_1" }
+WoodenPallet { translation 37.5 18 0 rotation 0 0 1 1.5708 name "pal_fin_2" }
+CardboardBox { translation 37.5 6  0.20 name "fb_1" size 0.5 0.5 0.4 }
+CardboardBox { translation 37.5 18 0.20 name "fb_2" size 0.5 0.5 0.4 }
+
+# Forklift (simplified) parked at south end
+Solid { translation 34.5 2.5 0.35 children [
+  Shape { appearance PBRAppearance { baseColor 0.95 0.65 0.10 roughness 0.4 metalness 0.3 } geometry Box { size 1.2 0.9 0.7 } }
+  Pose { translation -0.1 0 0.80 children [ Shape { appearance PBRAppearance { baseColor 0.20 0.20 0.22 roughness 0.4 } geometry Box { size 0.9 0.8 0.9 } } ] }
+  Pose { translation 0.55 0 0.25 children [ Shape { appearance PBRAppearance { baseColor 0.45 0.45 0.45 roughness 0.3 metalness 0.8 } geometry Box { size 0.1 0.6 1.8 } } ] }
+] name "forklift" boundingObject Box { size 1.2 0.9 0.7 } }
+
+# ============================================================================
+# CHARGING STATIONS (x=0..10, y=11..15) — 3 stations aligned at y=11.5
+# ============================================================================
+DEF CHARGER Shape {
+  appearance PBRAppearance { baseColor 0.18 0.55 0.30 roughness 0.3 metalness 0.4 }
+  geometry Box { size 0.60 0.50 0.40 }
+}
+DEF CHARGER_POLE Shape {
+  appearance PBRAppearance { baseColor 0.25 0.60 0.35 roughness 0.4 metalness 0.4 }
+  geometry Box { size 0.14 0.14 0.9 }
+}
+DEF CHARGER_LED Shape {
+  appearance PBRAppearance { baseColor 0.15 0.95 0.25 emissiveColor 0.1 0.8 0.15 }
+  geometry Sphere { radius 0.07 }
+}
+Solid {
+  translation 2 11.5 0.2
+  children [
+    USE CHARGER
+    Pose { translation 0 -0.05 0.65 children [ USE CHARGER_POLE ] }
+    Pose { translation 0 -0.05 1.20 children [ USE CHARGER_LED ] }
+  ]
+  name "CS01" boundingObject Box { size 0.60 0.50 0.40 }
+}
+Solid {
+  translation 5 11.5 0.2
+  children [
+    USE CHARGER
+    Pose { translation 0 -0.05 0.65 children [ USE CHARGER_POLE ] }
+    Pose { translation 0 -0.05 1.20 children [ USE CHARGER_LED ] }
+  ]
+  name "CS02" boundingObject Box { size 0.60 0.50 0.40 }
+}
+Solid {
+  translation 8 11.5 0.2
+  children [
+    USE CHARGER
+    Pose { translation 0 -0.05 0.65 children [ USE CHARGER_POLE ] }
+    Pose { translation 0 -0.05 1.20 children [ USE CHARGER_LED ] }
+  ]
+  name "CS03" boundingObject Box { size 0.60 0.50 0.40 }
+}
+
+# Electrical cabinet behind chargers
+Solid { translation 0.5 12 0.90 children [
+  Shape { appearance PBRAppearance { baseColor 0.55 0.55 0.58 roughness 0.5 metalness 0.5 } geometry Box { size 0.4 2.0 1.8 } }
+  Pose { translation 0.25 0 0.5 children [ Shape { appearance PBRAppearance { baseColor 0.10 0.10 0.15 emissiveColor 0.15 0.30 0.08 } geometry Box { size 0.05 0.6 0.3 } } ] }
+] name "elec_cabinet" boundingObject Box { size 0.4 2.0 1.8 } }
+
+# Dock markers at y=13 (where robots drive in to align)
+DEF DOCK_MARKER Shape { appearance PBRAppearance { baseColor 0.25 0.85 0.35 emissiveColor 0.1 0.5 0.15 roughness 0.5 } geometry Box { size 0.7 0.7 0.004 } }
+Solid { translation 2 13 0.008 children [ USE DOCK_MARKER ] name "dock_cs01" }
+Solid { translation 5 13 0.008 children [ USE DOCK_MARKER ] name "dock_cs02" }
+Solid { translation 8 13 0.008 children [ USE DOCK_MARKER ] name "dock_cs03" }
+
+# ============================================================================
+# QUALITY CONTROL (x=0..10, y=15..24) — inspection benches + monitors + lamps
+# ============================================================================
+Solid { translation 1.2 18 0.50 children [
+  Shape { appearance PBRAppearance { baseColor 0.92 0.92 0.90 roughness 0.3 } geometry Box { size 1.2 1.5 1.0 } }
+] name "qc_desk_1" boundingObject Box { size 1.2 1.5 1.0 } }
+Solid { translation 1.2 22 0.50 children [
+  Shape { appearance PBRAppearance { baseColor 0.92 0.92 0.90 roughness 0.3 } geometry Box { size 1.2 1.5 1.0 } }
+] name "qc_desk_2" boundingObject Box { size 1.2 1.5 1.0 } }
+
+# QC monitors + lamps on desks
+Solid { translation 1.2 18 1.20 children [ Shape { appearance PBRAppearance { baseColor 0.06 0.06 0.10 emissiveColor 0.10 0.35 0.55 } geometry Box { size 0.6 0.05 0.4 } } ] name "qc_mon_1" }
+Solid { translation 1.2 22 1.20 children [ Shape { appearance PBRAppearance { baseColor 0.06 0.06 0.10 emissiveColor 0.35 0.35 0.10 } geometry Box { size 0.6 0.05 0.4 } } ] name "qc_mon_2" }
+# Desk lamps (small emissive spheres on arm)
+Solid { translation 1.8 18 1.45 children [
+  Shape { appearance PBRAppearance { baseColor 0.25 0.25 0.28 roughness 0.4 metalness 0.7 } geometry Box { size 0.05 0.05 0.4 } }
+  Pose { translation 0.15 0 0.20 children [ Shape { appearance PBRAppearance { baseColor 1 0.95 0.70 emissiveColor 1 0.90 0.50 } geometry Sphere { radius 0.08 } } ] }
+] name "qc_lamp_1" }
+
+# Clipboard cabinet
+Solid { translation 1.2 20 0.80 children [
+  Shape { appearance PBRAppearance { baseColor 0.45 0.40 0.35 roughness 0.6 } geometry Box { size 0.4 0.8 1.6 } }
+] name "qc_cabinet" boundingObject Box { size 0.4 0.8 1.6 } }
+
+# ============================================================================
+# SAFETY EQUIPMENT — fire extinguishers in corners, bollards at intersections
+# ============================================================================
+FireExtinguisher { translation 0.5 0.5  0 rotation 0 0 1 0.5 name "fire_ext_3" }
+FireExtinguisher { translation 0.5 23.5 0 rotation 0 0 1 0.3 name "fire_ext_4" }
+FireExtinguisher { translation 39.5 0.5  0 rotation 0 0 1 -0.5 name "fire_ext_5" }
+FireExtinguisher { translation 39.5 23.5 0 rotation 0 0 1 -0.3 name "fire_ext_6" }
+
+# Yellow safety bollards — upright cylinders (default axis = Z in ENU)
+DEF BOLLARD Shape {
+  appearance PBRAppearance { baseColor 0.95 0.80 0.12 roughness 0.4 }
+  geometry Cylinder { height 0.9 radius 0.07 }
+}
+Solid { translation  9.8  8.7 0.45 children [ USE BOLLARD ] name "boll_1" boundingObject Cylinder { height 0.9 radius 0.07 } }
+Solid { translation 13.2  8.7 0.45 children [ USE BOLLARD ] name "boll_2" boundingObject Cylinder { height 0.9 radius 0.07 } }
+Solid { translation  9.8 11.3 0.45 children [ USE BOLLARD ] name "boll_3" boundingObject Cylinder { height 0.9 radius 0.07 } }
+Solid { translation 13.2 11.3 0.45 children [ USE BOLLARD ] name "boll_4" boundingObject Cylinder { height 0.9 radius 0.07 } }
+
+# Safety cones near welding zone
+DEF CONE Shape {
+  appearance PBRAppearance { baseColor 0.95 0.45 0.10 roughness 0.5 }
+  geometry Cylinder { height 0.4 radius 0.11 }
+}
+Solid { translation 23.5 4 0.20 children [ USE CONE ] name "cone_1" boundingObject Cylinder { height 0.4 radius 0.11 } }
+Solid { translation 23.5 6 0.20 children [ USE CONE ] name "cone_2" boundingObject Cylinder { height 0.4 radius 0.11 } }
+
+# HMI panels mounted on walls
+DEF HMI Shape { appearance PBRAppearance { baseColor 0.05 0.08 0.15 emissiveColor 0.10 0.35 0.55 } geometry Box { size 0.9 0.06 0.6 } }
+Solid { translation 11.5  0.03 1.7 children [ USE HMI ] name "hmi_s" boundingObject Box { size 0.9 0.06 0.6 } }
+Solid { translation 11.5 23.97 1.7 children [ USE HMI ] name "hmi_n" boundingObject Box { size 0.9 0.06 0.6 } }
+Solid { translation 39.97 12 1.7 children [ USE HMI ] name "hmi_e" boundingObject Box { size 0.06 0.9 0.6 } }
+
+# Warning signs on walls (red squares)
+DEF SIGN_RED Shape { appearance PBRAppearance { baseColor 0.85 0.15 0.15 emissiveColor 0.3 0.05 0.05 } geometry Box { size 0.4 0.02 0.4 } }
+Solid { translation 24 0.04 2.2 children [ USE SIGN_RED ] name "sign_weld" }
+Solid { translation 11.5 0.04 2.6 children [ USE SIGN_RED ] name "sign_corr" }
+
+# ============================================================================
+# ROBOTS — 3 differential-drive AMRs (ENU-correct geometry)
+#
+# Layout inside Robot frame (robot faces +X):
+#   • Chassis: Box (0.30 × 0.28 × 0.08) at z=0.10  → bottom 0.06, top 0.14
+#   • Top ring: upright cylinder at z=0.15          → bottom 0.14, top 0.16
+#   • Sensor dome: upright cylinder at z=0.175      → bottom 0.16, top 0.19
+#   • Wheels: cylinders axis=Y (default) at (0, ±0.14, 0.06), radius 0.06
+#     → bottom at z=0 (on floor), top at z=0.12
+#   • Casters: spheres at (±0.10, 0, 0.025), radius 0.025 → bottom z=0
+#   • Front LED: small red/blue/green box at (0.15, 0, 0.10)
+#   • Lidar: at (0, 0, 0.20) on top of sensor dome
+#   • Sonars: 8 around perimeter at z=0.10 (chassis mid-height)
+#
+# Wheel axis = joint axis = Y.  Default cylinder axis is Y, so no rotation
+# needed on the wheel cylinder — it naturally looks like a proper wheel.
+# ============================================================================
+
+# ---- AMR-01 (BLUE) — Warehouse raw ↔ Assembly A/B ----
+Robot {
+  translation 5 4.5 0.005
+  rotation 0 0 1 0
+  name "AMR-01"
+  controller "amr_controller"
+  customData "amr_01"
+  children [
+    # Chassis — solid dark-grey box
+    Pose { translation 0 0 0.10 children [
+      Shape { appearance PBRAppearance { baseColor 0.10 0.10 0.12 roughness 0.35 metalness 0.55 } geometry Box { size 0.30 0.28 0.08 } }
+    ] }
+    # Color top ring (blue)
+    Pose { translation 0 0 0.15 children [
+      Shape { appearance PBRAppearance { baseColor 0.20 0.45 0.85 roughness 0.3 metalness 0.2 } geometry Cylinder { height 0.02 radius 0.14 } }
+    ] }
+    # Sensor dome (dark grey short cylinder)
+    Pose { translation 0 0 0.175 children [
+      Shape { appearance PBRAppearance { baseColor 0.14 0.14 0.17 roughness 0.25 metalness 0.6 } geometry Cylinder { height 0.03 radius 0.05 } }
+    ] }
+    # Front LED (heading indicator)
+    Pose { translation 0.15 0 0.10 children [
+      Shape { appearance PBRAppearance { baseColor 0.30 0.55 0.95 emissiveColor 0.25 0.45 0.85 } geometry Box { size 0.015 0.10 0.02 } }
+    ] }
+    # Side numbering plaque
+    Pose { translation 0 0.145 0.10 children [
+      Shape { appearance PBRAppearance { baseColor 0.95 0.95 0.95 emissiveColor 0.4 0.4 0.4 } geometry Box { size 0.08 0.003 0.04 } }
+    ] }
+    # LEFT WHEEL — anchor at (0, +0.14, 0.06), axle along Y
+    HingeJoint {
+      jointParameters HingeJointParameters { anchor 0 0.14 0.06 axis 0 1 0 }
+      device [
+        RotationalMotor { name "left wheel motor" maxVelocity 18 maxTorque 8 }
+        PositionSensor { name "left wheel sensor" }
+      ]
+      endPoint Solid {
+        translation 0 0.14 0.06
+        children [
+          Pose { rotation 1 0 0 1.5708 children [
+            Shape { appearance PBRAppearance { baseColor 0.05 0.05 0.05 roughness 0.95 } geometry Cylinder { height 0.03 radius 0.06 } }
+          ] }
+        ]
+        name "left wheel"
+        boundingObject Pose { rotation 1 0 0 1.5708 children [ Cylinder { height 0.03 radius 0.06 } ] }
+        physics Physics { density -1 mass 0.3 }
+        contactMaterial "wheel"
+      }
+    }
+    # RIGHT WHEEL
+    HingeJoint {
+      jointParameters HingeJointParameters { anchor 0 -0.14 0.06 axis 0 1 0 }
+      device [
+        RotationalMotor { name "right wheel motor" maxVelocity 18 maxTorque 8 }
+        PositionSensor { name "right wheel sensor" }
+      ]
+      endPoint Solid {
+        translation 0 -0.14 0.06
+        children [
+          Pose { rotation 1 0 0 1.5708 children [
+            Shape { appearance PBRAppearance { baseColor 0.05 0.05 0.05 roughness 0.95 } geometry Cylinder { height 0.03 radius 0.06 } }
+          ] }
+        ]
+        name "right wheel"
+        boundingObject Pose { rotation 1 0 0 1.5708 children [ Cylinder { height 0.03 radius 0.06 } ] }
+        physics Physics { density -1 mass 0.3 }
+        contactMaterial "wheel"
+      }
+    }
+    # Front + rear casters (spheres)
+    Solid { translation 0.10 0 0.025 children [
+      Shape { appearance PBRAppearance { baseColor 0.12 0.12 0.12 roughness 0.4 } geometry Sphere { radius 0.025 } }
+    ] name "caster_f" boundingObject Sphere { radius 0.025 } physics Physics { density -1 mass 0.05 } contactMaterial "wheel" }
+    Solid { translation -0.10 0 0.025 children [
+      Shape { appearance PBRAppearance { baseColor 0.12 0.12 0.12 roughness 0.4 } geometry Sphere { radius 0.025 } }
+    ] name "caster_r" boundingObject Sphere { radius 0.025 } physics Physics { density -1 mass 0.05 } contactMaterial "wheel" }
+    # Navigation sensors
+    GPS         { name "gps" }
+    Compass     { name "compass" }
+    InertialUnit { name "imu" }
+    Accelerometer { name "accelerometer" }
+    Gyro        { name "gyro" }
+    # 360° LiDAR on top of sensor dome
+    Lidar {
+      translation 0 0 0.22
+      name "lidar"
+      horizontalResolution 32
+      fieldOfView 6.2831
+      verticalFieldOfView 0.05
+      numberOfLayers 1
+      minRange 0.08
+      maxRange 5.0
+      noise 0.005
+    }
+    # 8-way sonar ring at chassis mid-height
+    DistanceSensor { translation  0.15  0     0.10 rotation 0 0 1  0       name "ds_0"   lookupTable [0 0 0, 3 3000 0] type "sonar" }
+    DistanceSensor { translation  0.106 0.106 0.10 rotation 0 0 1  0.7854  name "ds_45"  lookupTable [0 0 0, 3 3000 0] type "sonar" }
+    DistanceSensor { translation  0     0.15  0.10 rotation 0 0 1  1.5708  name "ds_90"  lookupTable [0 0 0, 2 2000 0] type "sonar" }
+    DistanceSensor { translation -0.106 0.106 0.10 rotation 0 0 1  2.3562  name "ds_135" lookupTable [0 0 0, 2 2000 0] type "sonar" }
+    DistanceSensor { translation -0.15  0     0.10 rotation 0 0 1  3.1416  name "ds_180" lookupTable [0 0 0, 2 2000 0] type "sonar" }
+    DistanceSensor { translation -0.106 -0.106 0.10 rotation 0 0 1 -2.3562 name "ds_225" lookupTable [0 0 0, 2 2000 0] type "sonar" }
+    DistanceSensor { translation  0    -0.15  0.10 rotation 0 0 1 -1.5708  name "ds_270" lookupTable [0 0 0, 2 2000 0] type "sonar" }
+    DistanceSensor { translation  0.106 -0.106 0.10 rotation 0 0 1 -0.7854 name "ds_315" lookupTable [0 0 0, 3 3000 0] type "sonar" }
+    LED { name "status_led" color [ 0 1 0, 1 1 0, 1 0 0, 0 0 1 ] }
+  ]
+  boundingObject Pose { translation 0 0 0.10 children [ Box { size 0.30 0.28 0.08 } ] }
+  physics Physics { density -1 mass 12 centerOfMass [ 0 0 0.06 ] }
+}
+
+# ---- AMR-02 (ORANGE) — Assembly A → Welding → Packaging → Finished ----
+Robot {
+  translation 18 4.5 0.005
+  rotation 0 0 1 1.5708
+  name "AMR-02"
+  controller "amr_controller"
+  customData "amr_02"
+  children [
+    Pose { translation 0 0 0.10 children [
+      Shape { appearance PBRAppearance { baseColor 0.10 0.10 0.12 roughness 0.35 metalness 0.55 } geometry Box { size 0.30 0.28 0.08 } }
+    ] }
+    Pose { translation 0 0 0.15 children [
+      Shape { appearance PBRAppearance { baseColor 0.88 0.42 0.12 roughness 0.3 metalness 0.2 } geometry Cylinder { height 0.02 radius 0.14 } }
+    ] }
+    Pose { translation 0 0 0.175 children [
+      Shape { appearance PBRAppearance { baseColor 0.14 0.14 0.17 roughness 0.25 metalness 0.6 } geometry Cylinder { height 0.03 radius 0.05 } }
+    ] }
+    Pose { translation 0.15 0 0.10 children [
+      Shape { appearance PBRAppearance { baseColor 0.95 0.55 0.15 emissiveColor 0.65 0.35 0.05 } geometry Box { size 0.015 0.10 0.02 } }
+    ] }
+    Pose { translation 0 0.145 0.10 children [
+      Shape { appearance PBRAppearance { baseColor 0.95 0.95 0.95 emissiveColor 0.4 0.4 0.4 } geometry Box { size 0.08 0.003 0.04 } }
+    ] }
+    HingeJoint {
+      jointParameters HingeJointParameters { anchor 0 0.14 0.06 axis 0 1 0 }
+      device [ RotationalMotor { name "left wheel motor" maxVelocity 18 maxTorque 8 } PositionSensor { name "left wheel sensor" } ]
+      endPoint Solid { translation 0 0.14 0.06 children [ Pose { rotation 1 0 0 1.5708 children [ Shape { appearance PBRAppearance { baseColor 0.05 0.05 0.05 roughness 0.95 } geometry Cylinder { height 0.03 radius 0.06 } } ] } ] name "left wheel" boundingObject Pose { rotation 1 0 0 1.5708 children [ Cylinder { height 0.03 radius 0.06 } ] } physics Physics { density -1 mass 0.3 } contactMaterial "wheel" }
+    }
+    HingeJoint {
+      jointParameters HingeJointParameters { anchor 0 -0.14 0.06 axis 0 1 0 }
+      device [ RotationalMotor { name "right wheel motor" maxVelocity 18 maxTorque 8 } PositionSensor { name "right wheel sensor" } ]
+      endPoint Solid { translation 0 -0.14 0.06 children [ Pose { rotation 1 0 0 1.5708 children [ Shape { appearance PBRAppearance { baseColor 0.05 0.05 0.05 roughness 0.95 } geometry Cylinder { height 0.03 radius 0.06 } } ] } ] name "right wheel" boundingObject Pose { rotation 1 0 0 1.5708 children [ Cylinder { height 0.03 radius 0.06 } ] } physics Physics { density -1 mass 0.3 } contactMaterial "wheel" }
+    }
+    Solid { translation  0.10 0 0.025 children [ Shape { appearance PBRAppearance { baseColor 0.12 0.12 0.12 roughness 0.4 } geometry Sphere { radius 0.025 } } ] name "caster_f" boundingObject Sphere { radius 0.025 } physics Physics { density -1 mass 0.05 } contactMaterial "wheel" }
+    Solid { translation -0.10 0 0.025 children [ Shape { appearance PBRAppearance { baseColor 0.12 0.12 0.12 roughness 0.4 } geometry Sphere { radius 0.025 } } ] name "caster_r" boundingObject Sphere { radius 0.025 } physics Physics { density -1 mass 0.05 } contactMaterial "wheel" }
+    GPS { name "gps" } Compass { name "compass" } InertialUnit { name "imu" } Accelerometer { name "accelerometer" } Gyro { name "gyro" }
+    Lidar { translation 0 0 0.22 name "lidar" horizontalResolution 32 fieldOfView 6.2831 verticalFieldOfView 0.05 numberOfLayers 1 minRange 0.08 maxRange 5.0 noise 0.005 }
+    DistanceSensor { translation  0.15  0     0.10 rotation 0 0 1  0       name "ds_0"   lookupTable [0 0 0, 3 3000 0] type "sonar" }
+    DistanceSensor { translation  0.106 0.106 0.10 rotation 0 0 1  0.7854  name "ds_45"  lookupTable [0 0 0, 3 3000 0] type "sonar" }
+    DistanceSensor { translation  0     0.15  0.10 rotation 0 0 1  1.5708  name "ds_90"  lookupTable [0 0 0, 2 2000 0] type "sonar" }
+    DistanceSensor { translation -0.106 0.106 0.10 rotation 0 0 1  2.3562  name "ds_135" lookupTable [0 0 0, 2 2000 0] type "sonar" }
+    DistanceSensor { translation -0.15  0     0.10 rotation 0 0 1  3.1416  name "ds_180" lookupTable [0 0 0, 2 2000 0] type "sonar" }
+    DistanceSensor { translation -0.106 -0.106 0.10 rotation 0 0 1 -2.3562 name "ds_225" lookupTable [0 0 0, 2 2000 0] type "sonar" }
+    DistanceSensor { translation  0    -0.15  0.10 rotation 0 0 1 -1.5708  name "ds_270" lookupTable [0 0 0, 2 2000 0] type "sonar" }
+    DistanceSensor { translation  0.106 -0.106 0.10 rotation 0 0 1 -0.7854 name "ds_315" lookupTable [0 0 0, 3 3000 0] type "sonar" }
+    LED { name "status_led" color [ 0 1 0, 1 1 0, 1 0 0, 0 0 1 ] }
+  ]
+  boundingObject Pose { translation 0 0 0.10 children [ Box { size 0.30 0.28 0.08 } ] }
+  physics Physics { density -1 mass 12 centerOfMass [ 0 0 0.06 ] }
+}
+
+# ---- AMR-03 (GREEN) — QC ↔ Finished warehouse + charger patrol ----
+Robot {
+  translation 5 19.5 0.005
+  rotation 0 0 1 -1.5708
+  name "AMR-03"
+  controller "amr_controller"
+  customData "amr_03"
+  children [
+    Pose { translation 0 0 0.10 children [
+      Shape { appearance PBRAppearance { baseColor 0.10 0.10 0.12 roughness 0.35 metalness 0.55 } geometry Box { size 0.30 0.28 0.08 } }
+    ] }
+    Pose { translation 0 0 0.15 children [
+      Shape { appearance PBRAppearance { baseColor 0.20 0.70 0.28 roughness 0.3 metalness 0.2 } geometry Cylinder { height 0.02 radius 0.14 } }
+    ] }
+    Pose { translation 0 0 0.175 children [
+      Shape { appearance PBRAppearance { baseColor 0.14 0.14 0.17 roughness 0.25 metalness 0.6 } geometry Cylinder { height 0.03 radius 0.05 } }
+    ] }
+    Pose { translation 0.15 0 0.10 children [
+      Shape { appearance PBRAppearance { baseColor 0.25 0.85 0.35 emissiveColor 0.15 0.55 0.2 } geometry Box { size 0.015 0.10 0.02 } }
+    ] }
+    Pose { translation 0 0.145 0.10 children [
+      Shape { appearance PBRAppearance { baseColor 0.95 0.95 0.95 emissiveColor 0.4 0.4 0.4 } geometry Box { size 0.08 0.003 0.04 } }
+    ] }
+    HingeJoint {
+      jointParameters HingeJointParameters { anchor 0 0.14 0.06 axis 0 1 0 }
+      device [ RotationalMotor { name "left wheel motor" maxVelocity 18 maxTorque 8 } PositionSensor { name "left wheel sensor" } ]
+      endPoint Solid { translation 0 0.14 0.06 children [ Pose { rotation 1 0 0 1.5708 children [ Shape { appearance PBRAppearance { baseColor 0.05 0.05 0.05 roughness 0.95 } geometry Cylinder { height 0.03 radius 0.06 } } ] } ] name "left wheel" boundingObject Pose { rotation 1 0 0 1.5708 children [ Cylinder { height 0.03 radius 0.06 } ] } physics Physics { density -1 mass 0.3 } contactMaterial "wheel" }
+    }
+    HingeJoint {
+      jointParameters HingeJointParameters { anchor 0 -0.14 0.06 axis 0 1 0 }
+      device [ RotationalMotor { name "right wheel motor" maxVelocity 18 maxTorque 8 } PositionSensor { name "right wheel sensor" } ]
+      endPoint Solid { translation 0 -0.14 0.06 children [ Pose { rotation 1 0 0 1.5708 children [ Shape { appearance PBRAppearance { baseColor 0.05 0.05 0.05 roughness 0.95 } geometry Cylinder { height 0.03 radius 0.06 } } ] } ] name "right wheel" boundingObject Pose { rotation 1 0 0 1.5708 children [ Cylinder { height 0.03 radius 0.06 } ] } physics Physics { density -1 mass 0.3 } contactMaterial "wheel" }
+    }
+    Solid { translation  0.10 0 0.025 children [ Shape { appearance PBRAppearance { baseColor 0.12 0.12 0.12 roughness 0.4 } geometry Sphere { radius 0.025 } } ] name "caster_f" boundingObject Sphere { radius 0.025 } physics Physics { density -1 mass 0.05 } contactMaterial "wheel" }
+    Solid { translation -0.10 0 0.025 children [ Shape { appearance PBRAppearance { baseColor 0.12 0.12 0.12 roughness 0.4 } geometry Sphere { radius 0.025 } } ] name "caster_r" boundingObject Sphere { radius 0.025 } physics Physics { density -1 mass 0.05 } contactMaterial "wheel" }
+    GPS { name "gps" } Compass { name "compass" } InertialUnit { name "imu" } Accelerometer { name "accelerometer" } Gyro { name "gyro" }
+    Lidar { translation 0 0 0.22 name "lidar" horizontalResolution 32 fieldOfView 6.2831 verticalFieldOfView 0.05 numberOfLayers 1 minRange 0.08 maxRange 5.0 noise 0.005 }
+    DistanceSensor { translation  0.15  0     0.10 rotation 0 0 1  0       name "ds_0"   lookupTable [0 0 0, 3 3000 0] type "sonar" }
+    DistanceSensor { translation  0.106 0.106 0.10 rotation 0 0 1  0.7854  name "ds_45"  lookupTable [0 0 0, 3 3000 0] type "sonar" }
+    DistanceSensor { translation  0     0.15  0.10 rotation 0 0 1  1.5708  name "ds_90"  lookupTable [0 0 0, 2 2000 0] type "sonar" }
+    DistanceSensor { translation -0.106 0.106 0.10 rotation 0 0 1  2.3562  name "ds_135" lookupTable [0 0 0, 2 2000 0] type "sonar" }
+    DistanceSensor { translation -0.15  0     0.10 rotation 0 0 1  3.1416  name "ds_180" lookupTable [0 0 0, 2 2000 0] type "sonar" }
+    DistanceSensor { translation -0.106 -0.106 0.10 rotation 0 0 1 -2.3562 name "ds_225" lookupTable [0 0 0, 2 2000 0] type "sonar" }
+    DistanceSensor { translation  0    -0.15  0.10 rotation 0 0 1 -1.5708  name "ds_270" lookupTable [0 0 0, 2 2000 0] type "sonar" }
+    DistanceSensor { translation  0.106 -0.106 0.10 rotation 0 0 1 -0.7854 name "ds_315" lookupTable [0 0 0, 3 3000 0] type "sonar" }
+    LED { name "status_led" color [ 0 1 0, 1 1 0, 1 0 0, 0 0 1 ] }
+  ]
+  boundingObject Pose { translation 0 0 0.10 children [ Box { size 0.30 0.28 0.08 } ] }
+  physics Physics { density -1 mass 12 centerOfMass [ 0 0 0.06 ] }
+}

@@ -1,0 +1,71 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: amr_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-amr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-amr}
+      POSTGRES_DB: ${POSTGRES_DB:-amr_pdm}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-amr} -d ${POSTGRES_DB:-amr_pdm}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    ports: ["5432:5432"]
+    restart: unless-stopped
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: amr_mosquitto
+    command: mosquitto -c /mosquitto-no-auth.conf
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "echo > /dev/tcp/127.0.0.1/1883"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    container_name: amr_backend
+    depends_on:
+      postgres: { condition: service_healthy }
+      mosquitto: { condition: service_started }
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-amr}:${POSTGRES_PASSWORD:-amr}@postgres:5432/${POSTGRES_DB:-amr_pdm}
+      JWT_SECRET: ${JWT_SECRET:-please-override-in-real-deployments}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:8080}
+      MQTT_ENABLED: "true"
+      MQTT_BROKER: mosquitto
+      MQTT_PORT: "1883"
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      REFRESH_TOKEN_EXPIRE_DAYS:   ${REFRESH_TOKEN_EXPIRE_DAYS:-14}
+    command: >
+      sh -c "python -m app.seed &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"
+    ports: ["8000:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys;\nimport sys\ntry:\n  urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2)\nexcept Exception:\n  sys.exit(1)\n"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 20s
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: amr_frontend
+    depends_on:
+      - backend
+    ports: ["8080:80"]
+    restart: unless-stopped
+
+volumes:
+  pgdata: {}
